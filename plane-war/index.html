@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>星际战机 - Star Fighter</title>
+    <link rel="stylesheet" href="css/style.css?v=20260731">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="uiLayer">
+            <div id="mainMenu" class="screen">
+                <h1 class="game-title">星际战机</h1>
+                <p class="game-subtitle">STAR FIGHTER</p>
+                <div class="menu-buttons">
+                    <button id="btnStart" class="btn btn-primary">开始游戏</button>
+                    <button id="btnShop" class="btn btn-secondary">商店</button>
+                    <button id="btnLeaderboard" class="btn btn-secondary">排行榜</button>
+                    <button id="btnSettings" class="btn btn-secondary">设置</button>
+                </div>
+                <p class="version-info">v1.0.0</p>
+            </div>
+
+            <div id="modeSelect" class="screen hidden">
+                <h2 class="screen-title">选择游戏模式</h2>
+                <div class="mode-cards">
+                    <div class="mode-card" data-mode="classic">
+                        <div class="mode-icon">🎯</div>
+                        <h3>经典闯关</h3>
+                        <p>10个关卡，挑战Boss</p>
+                    </div>
+                    <div class="mode-card" data-mode="endless">
+                        <div class="mode-icon">♾️</div>
+                        <h3>无尽模式</h3>
+                        <p>无限波次，挑战高分</p>
+                    </div>
+                    <div class="mode-card" data-mode="challenge">
+                        <div class="mode-icon">⏱️</div>
+                        <h3>挑战模式</h3>
+                        <p>60秒限时，连击暴击</p>
+                    </div>
+                    <div class="mode-card" data-mode="bossrush">
+                        <div class="mode-icon">👹</div>
+                        <h3>Boss Rush</h3>
+                        <p>连续挑战5个Boss</p>
+                    </div>
+                </div>
+                <button id="btnBackToMenu" class="btn btn-secondary btn-back">← 返回主菜单</button>
+            </div>
+
+            <div id="shipSelect" class="screen hidden">
+                <h2 class="screen-title">选择战机</h2>
+                <div class="ship-cards">
+                    <div class="ship-card selected" data-ship="falcon">
+                        <div class="ship-icon">🚀</div>
+                        <h3>猎鹰号</h3>
+                        <div class="ship-stats">
+                            <div class="stat-row">
+                                <span>生命</span>
+                                <div class="stat-bar"><div class="stat-fill health" style="width: 60%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>速度</span>
+                                <div class="stat-bar"><div class="stat-fill speed" style="width: 60%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>火力</span>
+                                <div class="stat-bar"><div class="stat-fill fire" style="width: 40%"></div></div>
+                            </div>
+                        </div>
+                        <p class="ship-skill">技能：无</p>
+                    </div>
+                    <div class="ship-card locked" data-ship="thunder">
+                        <div class="ship-icon">⚡</div>
+                        <h3>雷霆号</h3>
+                        <div class="ship-stats">
+                            <div class="stat-row">
+                                <span>生命</span>
+                                <div class="stat-bar"><div class="stat-fill health" style="width: 70%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>速度</span>
+                                <div class="stat-bar"><div class="stat-fill speed" style="width: 80%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>火力</span>
+                                <div class="stat-bar"><div class="stat-fill fire" style="width: 60%"></div></div>
+                            </div>
+                        </div>
+                        <p class="ship-skill">技能：闪电链</p>
+                        <p class="lock-text">🔒 通关第5关解锁</p>
+                    </div>
+                    <div class="ship-card locked" data-ship="phantom">
+                        <div class="ship-icon">👻</div>
+                        <h3>幻影号</h3>
+                        <div class="ship-stats">
+                            <div class="stat-row">
+                                <span>生命</span>
+                                <div class="stat-bar"><div class="stat-fill health" style="width: 40%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>速度</span>
+                                <div class="stat-bar"><div class="stat-fill speed" style="width: 100%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>火力</span>
+                                <div class="stat-bar"><div class="stat-fill fire" style="width: 40%"></div></div>
+                            </div>
+                        </div>
+                        <p class="ship-skill">技能：隐身闪避</p>
+                        <p class="lock-text">🔒 无尽模式5000分解锁</p>
+                    </div>
+                    <div class="ship-card locked" data-ship="fortress">
+                        <div class="ship-icon">🛡️</div>
+                        <h3>堡垒号</h3>
+                        <div class="ship-stats">
+                            <div class="stat-row">
+                                <span>生命</span>
+                                <div class="stat-bar"><div class="stat-fill health" style="width: 100%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>速度</span>
+                                <div class="stat-bar"><div class="stat-fill speed" style="width: 50%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>火力</span>
+                                <div class="stat-bar"><div class="stat-fill fire" style="width: 85%"></div></div>
+                            </div>
+                        </div>
+                        <p class="ship-skill">技能：重型护盾 + 高爆弹头</p>
+                        <p class="lock-text">🔒 通关经典模式解锁</p>
+                    </div>
+                    <div class="ship-card locked" data-ship="meteor">
+                        <div class="ship-icon">🌟</div>
+                        <h3>星陨号</h3>
+                        <div class="ship-stats">
+                            <div class="stat-row">
+                                <span>生命</span>
+                                <div class="stat-bar"><div class="stat-fill health" style="width: 90%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>速度</span>
+                                <div class="stat-bar"><div class="stat-fill speed" style="width: 60%"></div></div>
+                            </div>
+                            <div class="stat-row">
+                                <span>火力</span>
+                                <div class="stat-bar"><div class="stat-fill fire" style="width: 100%"></div></div>
+                            </div>
+                        </div>
+                        <p class="ship-skill">技能：陨石轰击 · 最高单发伤害</p>
+                        <p class="lock-text">🔒 累计2000金币解锁</p>
+                    </div>
+                </div>
+                <div class="ship-actions">
+                    <button id="btnBackToMode" class="btn btn-secondary">← 返回</button>
+                    <button id="btnConfirmShip" class="btn btn-primary">确认选择</button>
+                </div>
+            </div>
+
+            <div id="gameHUD" class="hidden">
+                <div class="hud-top">
+                    <div class="hud-left">
+                        <div class="health-container">
+                            <span class="hud-label">HP</span>
+                            <div class="health-bar">
+                                <div id="healthFill" class="health-fill"></div>
+                            </div>
+                            <span id="healthText" class="hud-text">100/100</span>
+                        </div>
+                        <div id="shieldIndicator" class="shield-indicator hidden">🛡️</div>
+                    </div>
+                    <div class="hud-center">
+                        <div class="wave-container">
+                            <span id="waveLabel" class="hud-label">波次</span>
+                            <div class="wave-bar">
+                                <div id="waveFill" class="wave-fill"></div>
+                            </div>
+                            <span id="waveText" class="hud-text">1/10</span>
+                        </div>
+                    </div>
+                    <div class="hud-right">
+                        <div class="score-container">
+                            <span class="hud-label">分数</span>
+                            <span id="scoreText" class="score-text">0</span>
+                        </div>
+                        <div class="highscore-container">
+                            <span class="hud-label">最高分</span>
+                            <span id="highScoreText" class="highscore-text">0</span>
+                        </div>
+                        <div class="coin-container">
+                            <span class="hud-label">💰</span>
+                            <span id="coinText" class="coin-text">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="comboDisplay" class="combo-display hidden">
+                    <span id="comboText">连击 x1</span>
+                </div>
+                <div class="hud-bottom">
+                    <div class="hud-left">
+                        <div class="energy-container">
+                            <span class="hud-label">能量</span>
+                            <div class="energy-bar">
+                                <div id="energyFill" class="energy-fill"></div>
+                            </div>
+                            <span id="energyText" class="hud-text">0%</span>
+                        </div>
+                        <div class="weapon-level">
+                            <span class="hud-label">武器</span>
+                            <span id="weaponLevelText">Lv.1</span>
+                        </div>
+                    </div>
+                    <div class="hud-right">
+                        <button id="btnPause" class="btn-icon">⏸️</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pauseMenu" class="screen hidden overlay">
+                <div class="panel">
+                    <h2>游戏暂停</h2>
+                    <div class="menu-buttons">
+                        <button id="btnResume" class="btn btn-primary">继续游戏</button>
+                        <button id="btnRestart" class="btn btn-secondary">重新开始</button>
+                        <button id="btnQuit" class="btn btn-secondary">返回主菜单</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gameOverScreen" class="screen hidden overlay">
+                <div class="panel">
+                    <h2>游戏结束</h2>
+                    <div class="result-stats">
+                        <div class="result-row">
+                            <span>得分</span>
+                            <span id="finalScore" class="highlight">0</span>
+                        </div>
+                        <div class="result-row">
+                            <span>最高分</span>
+                            <span id="highScore">0</span>
+                        </div>
+                        <div class="result-row">
+                            <span>击杀数</span>
+                            <span id="killCount">0</span>
+                        </div>
+                        <div class="result-row">
+                            <span>获得金币</span>
+                            <span id="earnedCoins" class="gold">+0</span>
+                        </div>
+                    </div>
+                    <div id="newRecord" class="new-record hidden">🏆 新纪录！</div>
+                    <div class="menu-buttons">
+                        <button id="btnPlayAgain" class="btn btn-primary">再来一局</button>
+                        <button id="btnGameOverMenu" class="btn btn-secondary">返回主菜单</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="levelTransition" class="screen hidden overlay level-transition">
+                <div class="level-transition-content">
+                    <h2 class="level-title">第 <span id="levelNum">1</span> 关</h2>
+                    <p class="level-subtitle">准备战斗！</p>
+                </div>
+            </div>
+
+            <div id="victoryScreen" class="screen hidden overlay">
+                <div class="panel victory-panel">
+                    <h2 class="victory-title">🏆 恭喜通关！</h2>
+                    <p class="victory-subtitle">你击败了最终Boss，拯救了银河系！</p>
+                    <div class="result-stats">
+                        <div class="result-row">
+                            <span>最终得分</span>
+                            <span id="victoryScore" class="highlight">0</span>
+                        </div>
+                        <div class="result-row">
+                            <span>总击杀数</span>
+                            <span id="victoryKills">0</span>
+                        </div>
+                        <div class="result-row">
+                            <span>获得金币</span>
+                            <span id="victoryCoins" class="gold">+0</span>
+                        </div>
+                    </div>
+                    <div class="menu-buttons">
+                        <button id="btnVictoryPlayAgain" class="btn btn-primary">再来一局</button>
+                        <button id="btnVictoryMenu" class="btn btn-secondary">返回主菜单</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="shopScreen" class="screen hidden">
+                <h2 class="screen-title">商店</h2>
+                <p class="shop-coins">💰 拥有金币: <span id="shopCoinCount">0</span></p>
+                <div class="shop-items">
+                    <div class="shop-item" data-item="healthUp">
+                        <div class="shop-item-icon">❤️</div>
+                        <h3>生命强化</h3>
+                        <p>永久 +10 最大生命值</p>
+                        <p class="shop-item-level">当前: +<span id="healthBonusLevel">0</span> HP</p>
+                        <button class="btn btn-buy" data-item="healthUp">100 金币</button>
+                    </div>
+                    <div class="shop-item" data-item="weaponStart">
+                        <div class="shop-item-icon">🔫</div>
+                        <h3>初始武器</h3>
+                        <p>开局武器等级 +1（最高3级）</p>
+                        <p class="shop-item-level">当前: Lv.<span id="weaponStartLevel">1</span></p>
+                        <button class="btn btn-buy" data-item="weaponStart">500 金币</button>
+                    </div>
+                    <div class="shop-item" data-item="coinMultiplier">
+                        <div class="shop-item-icon">💰</div>
+                        <h3>金币磁铁</h3>
+                        <p>永久 +10% 金币获取</p>
+                        <p class="shop-item-level">当前: +<span id="coinMultiplierLevel">0</span>%</p>
+                        <button class="btn btn-buy" data-item="coinMultiplier">300 金币</button>
+                    </div>
+                    <div class="shop-item" data-item="startShield">
+                        <div class="shop-item-icon">🛡️</div>
+                        <h3>开局护盾</h3>
+                        <p>下一局开局获得一个护盾</p>
+                        <p class="shop-item-level">状态: <span id="startShieldStatus">未激活</span></p>
+                        <button class="btn btn-buy" data-item="startShield">200 金币</button>
+                    </div>
+                    <div class="shop-item" data-item="damageUp">
+                        <div class="shop-item-icon">⚔️</div>
+                        <h3>火力强化</h3>
+                        <p>永久 +5% 伤害（最高10级）</p>
+                        <p class="shop-item-level">当前: +<span id="damageBonusLevel">0</span>%</p>
+                        <button class="btn btn-buy" data-item="damageUp">400 金币</button>
+                    </div>
+                    <div class="shop-item" data-item="speedUp">
+                        <div class="shop-item-icon">💨</div>
+                        <h3>机动强化</h3>
+                        <p>永久 +5 战机移速（最高10级）</p>
+                        <p class="shop-item-level">当前: +<span id="speedBonusLevel">0</span></p>
+                        <button class="btn btn-buy" data-item="speedUp">350 金币</button>
+                    </div>
+                    <div class="shop-item" data-item="energyStart">
+                        <div class="shop-item-icon">⚡</div>
+                        <h3>初始能量</h3>
+                        <p>开局能量 +20%（最高5级）</p>
+                        <p class="shop-item-level">当前: +<span id="energyStartLevel">0</span>%</p>
+                        <button class="btn btn-buy" data-item="energyStart">250 金币</button>
+                    </div>
+                    <div class="shop-item" data-item="revive">
+                        <div class="shop-item-icon">✝️</div>
+                        <h3>复活十字架</h3>
+                        <p>抵挡一次致命伤害并回血（一次性）</p>
+                        <p class="shop-item-level">持有: <span id="reviveCount">0</span></p>
+                        <button class="btn btn-buy" data-item="revive">800 金币</button>
+                    </div>
+                </div>
+                <button id="btnShopBack" class="btn btn-secondary btn-back">← 返回主菜单</button>
+            </div>
+
+            <div id="leaderboardScreen" class="screen hidden">
+                <h2 class="screen-title">排行榜</h2>
+                <div class="leaderboard-tabs">
+                    <button class="tab-btn active" data-tab="endless">无尽模式</button>
+                    <button class="tab-btn" data-tab="classic">经典模式</button>
+                    <button class="tab-btn" data-tab="challenge">挑战模式</button>
+                </div>
+                <div class="leaderboard-list">
+                    <div class="leaderboard-header">
+                        <span>排名</span>
+                        <span>分数</span>
+                        <span>日期</span>
+                    </div>
+                    <div id="leaderboardEntries">
+                        <p class="empty-text">暂无记录，快去创造纪录吧！</p>
+                    </div>
+                </div>
+                <button id="btnLeaderboardBack" class="btn btn-secondary btn-back">← 返回</button>
+            </div>
+
+            <div id="settingsScreen" class="screen hidden">
+                <h2 class="screen-title">设置</h2>
+                <div class="settings-panel">
+                    <div class="setting-row">
+                        <label>音效</label>
+                        <div class="toggle-switch" id="soundToggle">
+                            <div class="toggle-knob"></div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>音乐</label>
+                        <div class="toggle-switch" id="musicToggle">
+                            <div class="toggle-knob"></div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>画质</label>
+                        <div class="quality-options">
+                            <button class="quality-btn" data-quality="low">低</button>
+                            <button class="quality-btn active" data-quality="medium">中</button>
+                            <button class="quality-btn" data-quality="high">高</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="controls-info">
+                    <h3>操作说明</h3>
+                    <ul>
+                        <li>🖱️ 鼠标移动 / 触屏拖动 - 控制战机</li>
+                        <li>🔫 自动射击</li>
+                        <li>⚡ 空格键 / 双击屏幕 - 释放大招</li>
+                        <li>⏸️ P键 / 暂停按钮 - 暂停游戏</li>
+                    </ul>
+                </div>
+                <button id="btnSettingsBack" class="btn btn-secondary btn-back">← 返回</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/game.js?v=20260731"></script>
+</body>
+</html>
