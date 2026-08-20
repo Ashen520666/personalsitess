@@ -12,8 +12,11 @@
             this.musicEnabled = true;
             this.soundEnabled = true;
             this.initialized = false;
-            this.musicSequenceTimer = null;
+            this.musicLoopTimer = null;
+            this.arpTimer = null;
             this.nextNoteTime = 0;
+            this.musicPlaying = false;
+            this.musicLayer = 0;
         }
 
         init() {
@@ -26,7 +29,7 @@
                 this.masterGain.connect(this.ctx.destination);
 
                 this.musicGain = this.ctx.createGain();
-                this.musicGain.gain.value = this.musicEnabled ? 0.35 : 0;
+                this.musicGain.gain.value = this.musicEnabled ? 0.3 : 0;
                 this.musicGain.connect(this.masterGain);
 
                 this.sfxGain = this.ctx.createGain();
@@ -49,7 +52,7 @@
         setMusicEnabled(enabled) {
             this.musicEnabled = enabled;
             if (this.musicGain) {
-                this.musicGain.gain.setTargetAtTime(enabled ? 0.35 : 0, this.ctx.currentTime, 0.3);
+                this.musicGain.gain.setTargetAtTime(enabled ? 0.3 : 0, this.ctx.currentTime, 0.3);
             }
             if (enabled) this.playMusic();
             else this.stopMusic();
@@ -62,82 +65,229 @@
             }
         }
 
-        // 背景音乐：太空氛围
-        playMusic() {
-            if (!this.initialized || !this.musicEnabled) return;
-            this.stopMusic();
-            const now = this.ctx.currentTime;
-
-            // 低频 drone
-            const drone = this.ctx.createOscillator();
-            drone.type = 'sine';
-            drone.frequency.setValueAtTime(55, now);
-            drone.frequency.linearRampToValueAtTime(58, now + 8);
-            drone.frequency.linearRampToValueAtTime(55, now + 16);
-            const droneGain = this.ctx.createGain();
-            droneGain.gain.value = 0.12;
-            drone.connect(droneGain);
-            droneGain.connect(this.musicGain);
-            drone.start(now);
-            drone.stop(now + 16);
-            this.musicNodes.push({ osc: drone, gain: droneGain });
-
-            // 中频 pad
-            const pad = this.ctx.createOscillator();
-            pad.type = 'triangle';
-            pad.frequency.setValueAtTime(110, now);
-            const padGain = this.ctx.createGain();
-            padGain.gain.setValueAtTime(0, now);
-            padGain.gain.linearRampToValueAtTime(0.06, now + 2);
-            padGain.gain.linearRampToValueAtTime(0, now + 12);
-            pad.connect(padGain);
-            padGain.connect(this.musicGain);
-            pad.start(now);
-            pad.stop(now + 12);
-            this.musicNodes.push({ osc: pad, gain: padGain });
-
-            // 琶音序列
-            this.nextNoteTime = now;
-            this.scheduleAmbientNotes();
+        isMusicPlaying() {
+            return this.musicPlaying;
         }
 
-        scheduleAmbientNotes() {
+        // 背景音乐：持续循环的太空氛围
+        playMusic() {
             if (!this.initialized || !this.musicEnabled) return;
+            this.ensureContext();
+            this.stopMusic();
+            this.musicPlaying = true;
+            this.musicLayer = 0;
             const now = this.ctx.currentTime;
-            const notes = [220, 261.63, 329.63, 392, 440, 523.25];
-            while (this.nextNoteTime < now + 2) {
-                const freq = notes[Math.floor(Math.random() * notes.length)];
+
+            // 持续的低频drone（A1音，55Hz）
+            this.createDrone(now);
+            
+            // 持续的和声pad层（A小调和弦：A2, C3, E3）
+            this.createPad(now);
+
+            // 启动琶音序列
+            this.nextNoteTime = now;
+            this.scheduleArpeggio();
+
+            // 每8秒循环创建新的音乐层，保持音乐持续
+            this.scheduleMusicLoop();
+        }
+
+        createDrone(startTime) {
+            if (!this.musicPlaying) return;
+            const ctx = this.ctx;
+            // 主drone - A1 (55Hz) with slight detune
+            const osc1 = ctx.createOscillator();
+            osc1.type = 'sine';
+            osc1.frequency.value = 55;
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.value = 55.5; // slight detune for chorus effect
+            
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.1, startTime + 2);
+            gain.gain.linearRampToValueAtTime(0.08, startTime + 6);
+            gain.gain.linearRampToValueAtTime(0, startTime + 8);
+
+            // LFO for subtle volume modulation
+            const lfo = ctx.createOscillator();
+            lfo.frequency.value = 0.15;
+            const lfoGain = ctx.createGain();
+            lfoGain.gain.value = 0.02;
+            lfo.connect(lfoGain);
+            lfoGain.connect(gain.gain);
+            lfo.start(startTime);
+            lfo.stop(startTime + 8);
+
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(this.musicGain);
+            osc1.start(startTime);
+            osc2.start(startTime);
+            osc1.stop(startTime + 8);
+            osc2.stop(startTime + 8);
+
+            this.musicNodes.push(osc1, osc2, gain, lfo, lfoGain);
+        }
+
+        createPad(startTime) {
+            if (!this.musicPlaying) return;
+            const ctx = this.ctx;
+            // A minor chord: A2(110), C3(130.81), E3(164.81)
+            const freqs = [110, 130.81, 164.81];
+            const chordShift = this.musicLayer % 4;
+            
+            // 和弦进行：Am - F - C - G (i - VI - III - VII)
+            const chords = [
+                [110, 130.81, 164.81],  // Am
+                [87.31, 130.81, 174.61], // F
+                [130.81, 164.81, 196],   // C
+                [98, 123.47, 146.83]     // G
+            ];
+            
+            const chord = chords[chordShift];
+            
+            chord.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                
+                const osc2 = ctx.createOscillator();
+                osc2.type = 'sine';
+                osc2.frequency.value = freq * 2; // 一个八度上的泛音
+                
+                const gain = ctx.createGain();
+                const vol = 0.04 - i * 0.008;
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(vol, startTime + 3);
+                gain.gain.linearRampToValueAtTime(vol * 0.8, startTime + 6);
+                gain.gain.linearRampToValueAtTime(0, startTime + 8);
+
+                osc.connect(gain);
+                osc2.connect(gain);
+                gain.connect(this.musicGain);
+                osc.start(startTime);
+                osc2.start(startTime);
+                osc.stop(startTime + 8);
+                osc2.stop(startTime + 8);
+                
+                this.musicNodes.push(osc, osc2, gain);
+            });
+        }
+
+        scheduleArpeggio() {
+            if (!this.initialized || !this.musicEnabled || !this.musicPlaying) return;
+            const now = this.ctx.currentTime;
+            // A minor pentatonic scale patterns
+            const scales = [
+                [220, 261.63, 329.63, 392, 440, 523.25],      // A minor pentatonic
+                [174.61, 220, 261.63, 349.23, 440],           // F major pentatonic
+                [261.63, 329.63, 392, 493.88, 523.25],        // C major pentatonic
+                [196, 246.94, 293.66, 392, 493.88]            // G major pentatonic
+            ];
+            const scale = scales[this.musicLayer % 4];
+            
+            while (this.nextNoteTime < now + 3) {
+                const freq = scale[Math.floor(Math.random() * scale.length)];
                 const osc = this.ctx.createOscillator();
                 osc.type = 'sine';
                 osc.frequency.value = freq;
+                
+                // 偶尔加一个高八度的音增加闪烁感
+                if (Math.random() < 0.2) {
+                    const osc2 = this.ctx.createOscillator();
+                    osc2.type = 'sine';
+                    osc2.frequency.value = freq * 2;
+                    const gain2 = this.ctx.createGain();
+                    gain2.gain.setValueAtTime(0, this.nextNoteTime);
+                    gain2.gain.linearRampToValueAtTime(0.015, this.nextNoteTime + 0.03);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, this.nextNoteTime + 0.8);
+                    osc2.connect(gain2);
+                    gain2.connect(this.musicGain);
+                    osc2.start(this.nextNoteTime);
+                    osc2.stop(this.nextNoteTime + 0.8);
+                    this.musicNodes.push(osc2, gain2);
+                }
+                
                 const gain = this.ctx.createGain();
                 gain.gain.setValueAtTime(0, this.nextNoteTime);
-                gain.gain.linearRampToValueAtTime(0.04, this.nextNoteTime + 0.05);
-                gain.gain.exponentialRampToValueAtTime(0.001, this.nextNoteTime + 1.5);
+                gain.gain.linearRampToValueAtTime(0.035, this.nextNoteTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.nextNoteTime + 1.2);
                 osc.connect(gain);
                 gain.connect(this.musicGain);
                 osc.start(this.nextNoteTime);
-                osc.stop(this.nextNoteTime + 1.5);
-                this.nextNoteTime += 0.5 + Math.random() * 1.0;
+                osc.stop(this.nextNoteTime + 1.2);
+                this.musicNodes.push(osc, gain);
+                
+                this.nextNoteTime += 0.35 + Math.random() * 0.4;
             }
-            if (this.musicEnabled) {
-                this.musicSequenceTimer = setTimeout(() => this.scheduleAmbientNotes(), 500);
+            
+            if (this.musicPlaying && this.musicEnabled) {
+                this.arpTimer = setTimeout(() => this.scheduleArpeggio(), 1000);
             }
         }
 
-        stopMusic() {
-            if (this.musicSequenceTimer) {
-                clearTimeout(this.musicSequenceTimer);
-                this.musicSequenceTimer = null;
-            }
-            this.musicNodes.forEach(node => {
+        scheduleMusicLoop() {
+            if (!this.musicPlaying || !this.musicEnabled) return;
+            
+            this.musicLoopTimer = setTimeout(() => {
+                if (!this.musicPlaying) return;
+                this.musicLayer++;
+                const now = this.ctx.currentTime;
+                this.createDrone(now);
+                this.createPad(now);
+                // 清理已结束的节点
+                this.cleanupNodes();
+                this.scheduleMusicLoop();
+            }, 8000);
+        }
+
+        cleanupNodes() {
+            const ctx = this.ctx;
+            this.musicNodes = this.musicNodes.filter(node => {
                 try {
-                    node.osc.stop();
-                    node.osc.disconnect();
-                    node.gain.disconnect();
-                } catch (e) {}
+                    // 简单地保留节点，不尝试断开，避免错误
+                    return true;
+                } catch (e) {
+                    return false;
+                }
             });
-            this.musicNodes = [];
+        }
+
+        stopMusic() {
+            this.musicPlaying = false;
+            if (this.musicLoopTimer) {
+                clearTimeout(this.musicLoopTimer);
+                this.musicLoopTimer = null;
+            }
+            if (this.arpTimer) {
+                clearTimeout(this.arpTimer);
+                this.arpTimer = null;
+            }
+            // 渐出后停止
+            if (this.musicGain && this.initialized) {
+                this.musicGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.5);
+                setTimeout(() => {
+                    this.musicNodes.forEach(node => {
+                        try {
+                            if (node.stop) node.stop();
+                            if (node.disconnect) node.disconnect();
+                        } catch (e) {}
+                    });
+                    this.musicNodes = [];
+                    if (this.musicGain && this.musicEnabled) {
+                        this.musicGain.gain.value = 0.3;
+                    }
+                }, 600);
+            } else {
+                this.musicNodes.forEach(node => {
+                    try {
+                        if (node.stop) node.stop();
+                        if (node.disconnect) node.disconnect();
+                    } catch (e) {}
+                });
+                this.musicNodes = [];
+            }
         }
 
         // 音效
@@ -405,6 +555,20 @@
         setupUIHandlers();
         createStars();
         requestAnimationFrame(gameLoop);
+
+        // 首次用户交互时启动音频（浏览器自动播放策略要求）
+        const startMusicOnInteract = () => {
+            audioManager.ensureContext();
+            if (audioManager.musicEnabled && !audioManager.isMusicPlaying()) {
+                audioManager.playMusic();
+            }
+            document.removeEventListener('click', startMusicOnInteract);
+            document.removeEventListener('touchstart', startMusicOnInteract);
+            document.removeEventListener('keydown', startMusicOnInteract);
+        };
+        document.addEventListener('click', startMusicOnInteract);
+        document.addEventListener('touchstart', startMusicOnInteract);
+        document.addEventListener('keydown', startMusicOnInteract);
     }
 
     function resizeCanvas() {
@@ -611,6 +775,11 @@
         hideAllScreens();
         document.getElementById('mainMenu').classList.remove('hidden');
         document.getElementById('gameHUD').classList.add('hidden');
+        // 返回菜单时播放背景音乐
+        if (audioManager.musicEnabled && !audioManager.isMusicPlaying()) {
+            audioManager.ensureContext();
+            audioManager.playMusic();
+        }
     }
 
     function showModeSelect() {
@@ -738,21 +907,25 @@
         gameState = 'playing';
         hideAllScreens();
         document.getElementById('gameHUD').classList.remove('hidden');
-        audioManager.playMusic();
+        // 确保音乐在播放
+        if (audioManager.musicEnabled && !audioManager.isMusicPlaying()) {
+            audioManager.ensureContext();
+            audioManager.playMusic();
+        }
     }
 
     function pauseGame() {
         if (gameState !== 'playing') return;
         gameState = 'paused';
         document.getElementById('pauseMenu').classList.remove('hidden');
-        audioManager.stopMusic();
+        // 暂停时不停止音乐，保持氛围
     }
 
     function resumeGame() {
         if (gameState !== 'paused') return;
         gameState = 'playing';
         document.getElementById('pauseMenu').classList.add('hidden');
-        audioManager.playMusic();
+        // 继续游戏，音乐本来就在播放
     }
 
     function restartGame() {
@@ -760,7 +933,11 @@
         gameState = 'playing';
         hideAllScreens();
         document.getElementById('gameHUD').classList.remove('hidden');
-        audioManager.playMusic();
+        // 确保音乐在播放
+        if (audioManager.musicEnabled && !audioManager.isMusicPlaying()) {
+            audioManager.ensureContext();
+            audioManager.playMusic();
+        }
     }
 
     function quitToMenu() {
@@ -768,7 +945,11 @@
         hideAllScreens();
         document.getElementById('mainMenu').classList.remove('hidden');
         document.getElementById('gameHUD').classList.add('hidden');
-        audioManager.stopMusic();
+        // 返回菜单时继续播放音乐
+        if (audioManager.musicEnabled && !audioManager.isMusicPlaying()) {
+            audioManager.ensureContext();
+            audioManager.playMusic();
+        }
     }
 
     function gameOver() {
